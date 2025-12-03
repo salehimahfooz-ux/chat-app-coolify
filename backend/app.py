@@ -1,194 +1,89 @@
 import asyncio
 import websockets
 import json
-from datetime import datetime
-import logging
-import os
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+connected = set()
 
-class ChatServer:
-    def __init__(self):
-        self.connected_clients = set()
-        self.users = {}
-        self.rooms = {'general': set(), 'help': set(), 'random': set()}
+async def handler(websocket, path):
+    connected.add(websocket)
+    print(f"✅ New connection. Total: {len(connected)}")
     
-    async def register(self, websocket, user_data):
-        user_id = user_data.get('user_id', f'user_{len(self.users)+1}')
-        username = user_data.get('username', f'کاربر_{len(self.users)+1}')
+    try:
+        # ارسال خوش‌آمدگویی اولیه
+        await websocket.send(json.dumps({
+            "type": "welcome",
+            "message": "سلام! به چت سرور وصل شدی. 👋",
+            "timestamp": "همین الان"
+        }, ensure_ascii=False))
         
-        user_info = {
-            'id': user_id,
-            'username': username,
-            'websocket': websocket,
-            'joined_at': datetime.now().isoformat(),
-            'room': 'general'
-        }
-        
-        self.users[websocket] = user_info
-        self.connected_clients.add(websocket)
-        self.rooms['general'].add(websocket)
-        
-        logger.info(f'✅ کاربر {username} متصل شد. کل: {len(self.users)}')
-        return user_info
-    
-    async def unregister(self, websocket):
-        if websocket in self.users:
-            user = self.users[websocket]
-            username = user['username']
-            
-            if user['room'] in self.rooms and websocket in self.rooms[user['room']]:
-                self.rooms[user['room']].remove(websocket)
-            
-            del self.users[websocket]
-            
-            if websocket in self.connected_clients:
-                self.connected_clients.remove(websocket)
-            
-            logger.info(f'❌ کاربر {username} قطع شد. کل: {len(self.users)}')
-    
-    async def broadcast_to_room(self, room, message, exclude_websocket=None):
-        if room not in self.rooms:
-            return
-        
-        message_json = json.dumps(message, ensure_ascii=False)
-        tasks = []
-        
-        for client in self.rooms[room]:
-            if client == exclude_websocket:
-                continue
-            if client.open:
-                tasks.append(client.send(message_json))
-        
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-    
-    async def handle_message(self, websocket, message):
-        try:
-            data = json.loads(message)
-            message_type = data.get('type')
-            
-            if message_type == 'register':
-                user = await self.register(websocket, data)
+        # گوش دادن به پیام‌ها
+        async for message in websocket:
+            try:
+                data = json.loads(message)
+                print(f"📨 Received: {data}")
                 
-                await websocket.send(json.dumps({
-                    'type': 'welcome',
-                    'message': f'سلام {user["username"]}! به چت خوش آمدید. 👋',
-                    'user_id': user['id'],
-                    'username': user['username'],
-                    'rooms': list(self.rooms.keys()),
-                    'timestamp': datetime.now().isoformat()
-                }, ensure_ascii=False))
-                
-                await self.broadcast_to_room('general', {
-                    'type': 'user_joined',
-                    'username': user['username'],
-                    'timestamp': datetime.now().isoformat(),
-                    'total_users': len(self.users)
-                }, exclude_websocket=websocket)
-            
-            elif message_type == 'chat':
-                if websocket in self.users:
-                    user = self.users[websocket]
-                    room = user['room']
+                if data.get("type") == "register":
+                    username = data.get("username", "کاربر")
+                    user_id = f"user_{len(connected)}"
                     
-                    await self.broadcast_to_room(room, {
-                        'type': 'message',
-                        'username': user['username'],
-                        'content': data.get('content', ''),
-                        'room': room,
-                        'timestamp': datetime.now().isoformat()
-                    })
-            
-            elif message_type == 'join_room':
-                if websocket in self.users:
-                    user = self.users[websocket]
-                    old_room = user['room']
-                    new_room = data.get('room', 'general')
-                    
-                    if old_room in self.rooms and websocket in self.rooms[old_room]:
-                        self.rooms[old_room].remove(websocket)
-                    
-                    if new_room not in self.rooms:
-                        self.rooms[new_room] = set()
-                    
-                    self.rooms[new_room].add(websocket)
-                    user['room'] = new_room
-                    
+                    # پاسخ به ثبت نام
                     await websocket.send(json.dumps({
-                        'type': 'room_changed',
-                        'room': new_room,
-                        'message': f'به اتاق {new_room} پیوستید 🚪',
-                        'timestamp': datetime.now().isoformat()
+                        "type": "user_info",
+                        "user_id": user_id,
+                        "username": username,
+                        "message": f"ثبت نام موفق! خوش آمدی {username}",
+                        "timestamp": "همین الان"
                     }, ensure_ascii=False))
                     
-                    await self.broadcast_to_room(new_room, {
-                        'type': 'user_joined_room',
-                        'username': user['username'],
-                        'room': new_room,
-                        'timestamp': datetime.now().isoformat()
-                    }, exclude_websocket=websocket)
-            
-            elif message_type == 'get_users':
-                if websocket in self.users:
-                    user = self.users[websocket]
-                    room = user['room']
-                    
-                    room_users = []
-                    for client in self.rooms.get(room, []):
-                        if client in self.users:
-                            room_users.append({
-                                'username': self.users[client]['username'],
-                                'joined_at': self.users[client]['joined_at']
-                            })
-                    
+                    print(f"👤 User registered: {username}")
+                
+                elif data.get("type") == "chat":
+                    # بازگرداندن پیام به کاربر
                     await websocket.send(json.dumps({
-                        'type': 'users_list',
-                        'room': room,
-                        'users': room_users,
-                        'timestamp': datetime.now().isoformat()
+                        "type": "message",
+                        "username": "شما",
+                        "content": data.get("content", ""),
+                        "timestamp": "همین الان"
                     }, ensure_ascii=False))
+                    
+                    print(f"💬 Chat message: {data.get('content', '')}")
+                
+                elif data.get("type") == "ping":
+                    # پاسخ به ping
+                    await websocket.send(json.dumps({
+                        "type": "pong",
+                        "timestamp": "همین الان"
+                    }))
+                    
+                    print("🏓 Ping received")
             
-            elif message_type == 'ping':
+            except json.JSONDecodeError:
                 await websocket.send(json.dumps({
-                    'type': 'pong',
-                    'timestamp': datetime.now().isoformat()
+                    "type": "error",
+                    "message": "پیام نامعتبر. لطفاً JSON معتبر ارسال کنید."
                 }))
-        
-        except json.JSONDecodeError as e:
-            logger.error(f'خطای JSON: {e}')
-            await websocket.send(json.dumps({
-                'type': 'error',
-                'message': 'فرمت پیام نامعتبر است'
-            }))
     
-    async def handler(self, websocket, path):
-        try:
-            async for message in websocket:
-                await self.handle_message(websocket, message)
-        except websockets.exceptions.ConnectionClosed:
-            pass
-        finally:
-            await self.unregister(websocket)
-
-chat_server = ChatServer()
+    except websockets.exceptions.ConnectionClosed:
+        print("❌ Connection closed by client")
+    
+    finally:
+        connected.remove(websocket)
+        print(f"👋 Connection removed. Total: {len(connected)}")
 
 async def main():
-    host = "0.0.0.0"
-    port = int(os.getenv("PORT", "8765"))
-    
-    logger.info(f"🚀 سرور WebSocket روی {host}:{port} شروع شد...")
+    print("🚀 Starting WebSocket server on port 8765...")
     
     async with websockets.serve(
-        chat_server.handler,
-        host,
-        port,
-        ping_interval=20,
-        ping_timeout=40,
-        max_size=10 * 1024 * 1024
+        handler,
+        "0.0.0.0",
+        8765,
+        ping_interval=30,
+        ping_timeout=60,
+        max_size=10 * 1024 * 1024  # 10MB
     ):
-        await asyncio.Future()
+        print("✅ WebSocket server is ready!")
+        print("📡 Listening on ws://0.0.0.0:8765")
+        await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
     asyncio.run(main())
