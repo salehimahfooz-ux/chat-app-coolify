@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  chat-backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8765:8765"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(2); result=s.connect_ex(('localhost', 8765)); s.close(); exit(result)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "coolify.service.type=websocket"
+      - "coolify.service.name=chat-backend"
+      - "coolify.expose=true"

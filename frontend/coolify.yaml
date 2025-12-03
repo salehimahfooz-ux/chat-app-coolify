@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  chat-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - chat-backend
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "coolify.service.type=web"
+      - "coolify.service.name=chat-frontend"
+      - "coolify.expose=true"
+      - "coolify.expose.port=80"
+      - "coolify.domain=${DOMAIN:-chat.example.com}"
+      - "coolify.ssl=true"

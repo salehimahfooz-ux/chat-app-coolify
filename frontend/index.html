@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>چت‌روم با Coolify</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="user-profile">
+                <div class="avatar" id="userAvatar">👤</div>
+                <div class="user-info">
+                    <h3 id="username">میهمان</h3>
+                    <p class="status" id="userStatus">آفلاین</p>
+                </div>
+            </div>
+            
+            <div class="rooms-section">
+                <h3><i class="fas fa-door-open"></i> اتاق‌ها</h3>
+                <div class="room-list" id="roomList">
+                    <div class="room-item active" data-room="general">
+                        <span>عمومی</span>
+                        <span class="room-users">0</span>
+                    </div>
+                    <div class="room-item" data-room="help">
+                        <span>راهنما</span>
+                        <span class="room-users">0</span>
+                    </div>
+                    <div class="room-item" data-room="random">
+                        <span>تصادفی</span>
+                        <span class="room-users">0</span>
+                    </div>
+                </div>
+                <div class="create-room">
+                    <input type="text" id="newRoomInput" placeholder="نام اتاق جدید">
+                    <button onclick="chatApp.createRoom()"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            
+            <div class="online-users">
+                <h3><i class="fas fa-users"></i> آنلاین (<span id="onlineCount">0</span>)</h3>
+                <div class="users-list" id="usersList">
+                    <!-- لیست کاربران -->
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button onclick="chatApp.exportChat()" class="btn-secondary">
+                    <i class="fas fa-download"></i> ذخیره چت
+                </button>
+            </div>
+        </div>
+        
+        <div class="main-chat">
+            <div class="chat-header">
+                <div class="room-info">
+                    <h2 id="currentRoom">اتاق عمومی</h2>
+                    <p id="roomStats">0 کاربر</p>
+                </div>
+                <div class="connection-status">
+                    <span class="status-dot" id="connectionStatus"></span>
+                    <span id="connectionText">در حال اتصال...</span>
+                </div>
+            </div>
+            
+            <div class="messages-container" id="messagesContainer">
+                <div class="welcome-message">
+                    <h3>👋 به چت‌روم خوش آمدید!</h3>
+                    <p>برای شروع، نام کاربری خود را وارد کنید.</p>
+                </div>
+            </div>
+            
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <input type="text" id="messageInput" placeholder="پیام خود را بنویسید..." disabled>
+                    <div class="input-actions">
+                        <button onclick="chatApp.sendMessage()" id="sendButton" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                        <button onclick="chatApp.toggleEmojiPicker()">
+                            <i class="far fa-smile"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="login-prompt" id="loginPrompt">
+                    <div class="login-box">
+                        <h3>ورود به چت</h3>
+                        <input type="text" id="usernameInput" placeholder="نام کاربری خود را وارد کنید" maxlength="20">
+                        <button onclick="chatApp.login()" class="btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> ورود
+                        </button>
+                        <p class="hint">حداقل ۳ کاراکتر، حروف و اعداد</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="emoji-picker" id="emojiPicker" style="display: none;">
+            <div class="emoji-category">
+                <span onclick="chatApp.addEmoji('😊')">😊</span>
+                <span onclick="chatApp.addEmoji('😂')">😂</span>
+                <span onclick="chatApp.addEmoji('❤️')">❤️</span>
+                <span onclick="chatApp.addEmoji('👍')">👍</span>
+                <span onclick="chatApp.addEmoji('👋')">👋</span>
+                <span onclick="chatApp.addEmoji('🎉')">🎉</span>
+                <span onclick="chatApp.addEmoji('🔥')">🔥</span>
+                <span onclick="chatApp.addEmoji('⭐')">⭐</span>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

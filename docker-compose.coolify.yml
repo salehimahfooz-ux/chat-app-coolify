@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  chat-backend:
+    build: ./backend
+    ports:
+      - "8765:8765"
+    restart: always
+    networks:
+      - chat-net
+
+  chat-frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - chat-backend
+    restart: always
+    networks:
+      - chat-net
+    environment:
+      - DOMAIN=chat.your-domain.com
+
+networks:
+  chat-net:
+    driver: bridge
